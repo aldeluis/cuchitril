@@ -1,5 +1,47 @@
-const axios = require('axios')
+const https = require('https')
 const crypto = require('crypto')
+
+const doRequest = function (opts, payload) {
+	return new Promise(function(resolve, reject) {
+      payload = JSON.stringify(payload); 
+
+		var options = {
+			hostname: opts.hostname,
+			port:     opts.port,
+			path:     opts.path,
+			method:   opts.method,
+			headers: 	{
+				'Content-Type': 	'application/json',
+				'Content-Length': payload.length
+			},
+			rejectUnauthorized : true
+		}
+
+		var request = https.request(options, function(response) {
+			var data = '';
+
+			response.on('data', function(chunk) { data += chunk; });
+			response.on('end', function() {
+				try {
+					data = JSON.parse(data);
+					if (data.error) {
+						return reject(data);
+					}
+				} catch(e) {
+					return reject(data);
+				}
+
+				resolve(data);
+			});
+		});
+
+		request.on("error", reject);
+
+		request.write(payload);
+		request.end();
+	});
+
+}
 
 const zeroPad = (buf, blocksize) => {
   const pad = Buffer.alloc((blocksize - (buf.length % blocksize)) % blocksize, 0);
@@ -64,7 +106,13 @@ const qs = require('querystring')
 
 console.log(qs.stringify(post))
 
-axios.post('https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST',qs.stringify(post)).then(r=>console.log(r.data)) //envio de JSON
-//axios.post('https://sis-t.redsys.es:25443/sis/realizarPago',qs.stringify(post)).then(r=>console.log(r.data))  //envio de XML
+doRequest({
+					hostname: 		'sis-t.redsys.es',
+					port:     		25443,
+					path:     		'/sis/rest/trataPeticionREST',
+					method:   		'POST'	
+				}, post)
+				.then(console.log)
+				.catch(console.error);
 
 console.log(JSON.stringify(post))
